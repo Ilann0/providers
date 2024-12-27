@@ -31,20 +31,24 @@ async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promis
   const embeds: SourcererEmbed[] = [];
 
   for (const serverBase64 of results) {
-    const url = atob(serverBase64);
-    const page = await ctx.fetcher(url);
-    [sourcesRegex1, sourcesRegex2].forEach((regex) => {
-      const sources = page.match(regex)[1];
-      if (!sources?.length) return;
-      try {
-        const sourcesArr = JSON.parse(sources);
-        sourcesArr
-          .filter(s => !s.label || !s.label.toLowerCase?.() || s.label.toLowerCase().startsWith('eng'))
-          .map(s => embeds.push({ embedId: `auto-embed-${serverBase64}-${s.label}`, url: s.file }))
-      } catch (err) {
-        return;
-      }
-    })
+    try {
+      const url = atob(serverBase64);
+      const page = await ctx.proxiedFetcher(url);
+      [sourcesRegex1, sourcesRegex2].forEach((regex) => {
+        const sources = page.match(regex)[1];
+        if (!sources?.length) return;
+        try {
+          const sourcesArr: { file: string, label: string }[] = JSON.parse(sources);
+          sourcesArr
+            .filter(s => !s.label || !s.label.toLowerCase?.() || s.label.toLowerCase().startsWith('eng'))
+            .map(s => embeds.push({ embedId: `auto-embed-${serverBase64}-${s.label}`, url: s.file }))
+        } catch (err) {
+          return;
+        }
+      })
+    } catch (err) {
+      continue;
+    }
   }
 
   return {
