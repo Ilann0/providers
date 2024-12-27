@@ -11,9 +11,9 @@ const sourcesRegex2 = /file":\s*(\[[^\]]*\])/;
 async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> {
   let path = '/embed/';
   if (ctx.media.type === 'show') {
-    path += `/tv/${ctx.media.season.number.toString()}/${ctx.media.episode.number.toString()}`;
+    path += `/tv/${ctx.media.tmdbId}/${ctx.media.season.number.toString()}/${ctx.media.episode.number.toString()}`;
   } else {
-    path += '/movie'
+    path += `/movie/${ctx.media.imdbId}`;
   }
 
   const playerPage = await ctx.fetcher(path, { baseUrl });
