@@ -3,31 +3,48 @@ import { SourcererEmbed, SourcererOutput, makeSourcerer } from '@/providers/base
 import { MovieScrapeContext, ShowScrapeContext } from '@/utils/context';
 import { NotFoundError } from '@/utils/errors';
 
-const baseUrl = 'https://autoembed.cc/';
+const baseUrl = 'https://player.autoembed.cc.cc/';
+const serverRegex = /data-server="([^"]*)"/g;
+const sourcesRegex1 = /sources:\s*(\[[^\]]*\])/;
+const sourcesRegex2 = /file":\s*(\[[^\]]*\])/;
 
 async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> {
-  const playerPage = await ctx.proxiedFetcher(`/embed/player.php`, {
-    baseUrl,
-    query: {
-      id: ctx.media.tmdbId,
-      ...(ctx.media.type === 'show' && {
-        s: ctx.media.season.number.toString(),
-        e: ctx.media.episode.number.toString(),
-      }),
-    },
-  });
+  let path = '/embed/';
+  if (ctx.media.type === 'show') {
+    path += `/tv/${ctx.media.season.number.toString()}/${ctx.media.episode.number.toString()}`;
+  } else {
+    path += '/movie'
+  }
 
-  const fileDataMatch = playerPage.match(/"file": (\[.*?\])/s);
-  if (!fileDataMatch[1]) throw new NotFoundError('No data found');
+  const playerPage = await ctx.fetcher(path, { baseUrl });
 
-  const fileData: { title: string; file: string }[] = JSON.parse(fileDataMatch[1].replace(/,\s*\]$/, ']'));
+  const results = [];
+  let match;
+  while ((match = serverRegex.exec(playerPage)) !== null) {
+    results.push(match[1]);
+  }
+
+  if (!results.length) {
+    throw new NotFoundError('No data found');
+  }
 
   const embeds: SourcererEmbed[] = [];
 
-  for (const stream of fileData) {
-    const url = stream.file;
-    if (!url) continue;
-    embeds.push({ embedId: `autoembed-${stream.title.toLowerCase().trim()}`, url });
+  for (const serverBase64 of results) {
+    const url = atob(serverBase64);
+    const page = await ctx.fetcher(url);
+    [sourcesRegex1, sourcesRegex2].forEach((regex) => {
+      const sources = page.match(regex)[1];
+      if (!sources?.length) return;
+      try {
+        const sourcesArr = JSON.parse(sources);
+        sourcesArr
+          .filter(s => !s.label || !s.label.toLowerCase?.() || s.label.toLowerCase().startsWith('eng'))
+          .map(s => embeds.push({ embedId: `auto-embed-${serverBase64}-${s.label}`, url: s.file }))
+      } catch (err) {
+        return;
+      }
+    })
   }
 
   return {
