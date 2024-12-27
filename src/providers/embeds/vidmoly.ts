@@ -1,6 +1,16 @@
 import { EmbedOutput, makeEmbed } from '@/providers/base';
 import { NotFoundError } from '@/utils/errors';
 
+const headers = {
+  Origin: 'https://vidmoly.to',
+  Referer: 'https://vidmoly.to/'
+}
+
+const PLAYLIST_URL_REGEX = /file:\s*"([^"]*\.m3u8)"/;
+
+
+const getUrl = (videoId: string) => `https://vidmoly.to/embed-${encodeURIComponent(videoId)}.html`
+
 export const vidMolyScraper = makeEmbed({
   id: 'vidmoly',
   name: 'Vidmoly',
@@ -19,10 +29,24 @@ export const vidMolyScraper = makeEmbed({
     }
 
     const videoID = idMatch[2];
-    const vidScrapeURL = `https://vidmoly.wafflehacker.io/scrape?id=${encodeURIComponent(videoID)}`;
+    const htmlReq = await ctx.proxiedFetcher.full(getUrl(videoID), { headers });
+    const html = await htmlReq.body;
+    const hlsPlaylistUrl = html.match(PLAYLIST_URL_REGEX)?.[1];
     ctx.progress(50);
-    const vidScrape = await ctx.fetcher(vidScrapeURL);
+    if (!hlsPlaylistUrl) {
+      throw new NotFoundError('HLS playlist not found');
+    }
+    const proxiedUrl = `https://doesnmatterwhat.wafflehacker.io/m3u8?url=${encodeURIComponent(hlsPlaylistUrl)}&headers=${encodeURIComponent(JSON.stringify(headers))}`;
     ctx.progress(100);
-    return vidScrape as EmbedOutput;
+    return {
+      stream: [{
+        id: 'some',
+        playlist: proxiedUrl,
+        headers,
+        type: 'hls',
+        captions: [],
+        flags: [],
+      }]
+    } as EmbedOutput;
   },
 });
