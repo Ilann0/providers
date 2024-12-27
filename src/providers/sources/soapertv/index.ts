@@ -8,7 +8,7 @@ import { NotFoundError } from '@/utils/errors';
 import { InfoResponse } from './types';
 import { SourcererOutput, makeSourcerer } from '../../base';
 
-const baseUrl = 'https://soaper.tv';
+const baseUrl = 'https://soaper.live';
 
 const universalScraper = async (ctx: MovieScrapeContext | ShowScrapeContext): Promise<SourcererOutput> => {
   const searchResult = await ctx.proxiedFetcher('/search.html', {
