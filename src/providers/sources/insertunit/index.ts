@@ -10,7 +10,7 @@ async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promis
     ctx.progress(progress);
   }, 100);
 
-  let url = `https://insertunit.wafflehacker.io/scrape${ctx.media.imdbId}`;
+  let url = `https://insertunit.wafflehacker.io/scrape/${ctx.media.imdbId}`;
   if (ctx.media.type === 'show') url += `/${ctx.media.season.number}/${ctx.media.episode.number}`;
   const response = await ctx.fetcher(url);
   ctx.progress(100);
