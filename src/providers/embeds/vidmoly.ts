@@ -45,7 +45,7 @@ export const vidMolyScraper = makeEmbed({
         headers,
         type: 'hls',
         captions: [],
-        flags: [],
+        flags: ['cors-allowed'],
       }]
     } as EmbedOutput;
   },
