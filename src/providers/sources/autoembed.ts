@@ -8,12 +8,66 @@ const serverRegex = /data-server="([^"]*)"/g;
 const sourcesRegex1 = /sources:\s*(\[[^\]]*\])/;
 const sourcesRegex2 = /file":\s*(\[[^\]]*\])/;
 
+export interface TomAutoEmbedResult {
+  videoSource: string
+  subtitles: TomAutoEmbedSub[]
+  posterImageUrl: string
+}
+
+export interface TomAutoEmbedSub {
+  file: string
+  kind: string
+  label: string
+  default: boolean
+}
+
+
+const tomAutoEmbedBaseUrl = 'https://tom.autoembed.cc/api/getVideoSource'
+const tomAutoEmbedScraper = async (ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput['embeds']> => {
+  const url = new URL(tomAutoEmbedBaseUrl);
+  if (ctx.media.type === 'show') {
+    url.searchParams.set('type', 'tv');
+    const id = `${ctx.media.imdbId}/${ctx.media.season}/${ctx.media.episode}`;
+    url.searchParams.set('id', id);
+  } else {
+    url.searchParams.set('type', 'movie');
+    url.searchParams.set('id', String(ctx.media.imdbId));
+  }
+
+  const referer = new URL(url);
+  referer.pathname = `${url.searchParams.get('type')}/${url.searchParams.get('id')}`
+  let fileUrl: string | null = null;
+  try {
+    const apiResult: TomAutoEmbedResult = await ctx.proxiedFetcher(url.toString(), { headers: { Referer: referer.toString() } });
+    fileUrl = apiResult.videoSource;
+  } catch (error) {
+    console.error(error);
+  }
+
+  const embeds = [];
+  if (fileUrl) {
+    embeds.push({
+      embedId: 'tom-autoembed-api',
+      url: fileUrl,
+    });
+  }
+
+  return embeds;
+}
+
 async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promise<SourcererOutput> {
   let path = '/embed/';
   if (ctx.media.type === 'show') {
     path += `/tv/${ctx.media.tmdbId}/${ctx.media.season.number.toString()}/${ctx.media.episode.number.toString()}`;
   } else {
     path += `/movie/${ctx.media.imdbId}`;
+  }
+
+  const tomEmbed = await tomAutoEmbedScraper(ctx);
+  if (tomEmbed.length) {
+    return {
+      embeds: tomEmbed,
+    }
   }
 
   const playerPage = await ctx.fetcher(path, { baseUrl });
@@ -59,7 +113,7 @@ async function comboScraper(ctx: ShowScrapeContext | MovieScrapeContext): Promis
 export const autoembedScraper = makeSourcerer({
   id: 'autoembed',
   name: 'Autoembed',
-  rank: 10,
+  rank: 800,
   flags: [flags.CORS_ALLOWED],
   scrapeMovie: comboScraper,
   scrapeShow: comboScraper,
