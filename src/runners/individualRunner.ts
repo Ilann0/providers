@@ -63,7 +63,7 @@ export async function scrapeInvidualSource(
   // filter output with only valid embeds that are not disabled
   output.embeds = output.embeds.filter((embed) => {
     const e = list.embeds.find((v) => v.id === embed.embedId);
-    if (!e || e.disabled) return false;
+    if (e && e.disabled) return false;
     return true;
   });
 
