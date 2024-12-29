@@ -129,7 +129,7 @@ export async function runAllProviders(list: ProviderList, ops: ProviderRunnerOpt
     const sortedEmbeds = output.embeds
       .filter((embed) => {
         const e = list.embeds.find((v) => v.id === embed.embedId);
-        return !e || !e.disabled;
+        return e && !e.disabled;
       })
       .sort((a, b) => embedIds.indexOf(a.embedId) - embedIds.indexOf(b.embedId));
 
